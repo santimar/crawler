@@ -10,7 +10,7 @@ There are few components:
 
 ### Usage:
 ```
-python crawler.py -u <initial url> [-m <max pages to download>]
+python crawler.py [-m <max pages to download>] <initial_url> 
 ```
 <br>
 Note: this project was made with learning purpose, so you probably shouldn't use it in the real world 
