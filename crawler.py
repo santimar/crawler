@@ -1,33 +1,16 @@
 import time
 import requests
-import sieve
+import sieve as s
 import page_parser
 import lru_cache
-import sys
-import getopt
+import argparse
 
-if __name__ == "__main__":
-    initial_url = None
-    max_pages = 500
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hu:m:")
-    except getopt.GetoptError:
-        print('crawler.py -u <initial url> [-m <max pages to download>]')
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print('crawler.py -u <initial url> [-m <max pages to download>]')
-            sys.exit()
-        elif opt == "-u":
-            initial_url = arg
-        elif opt == "-m":
-            max_pages = arg
 
-    if initial_url is None:
-        print('crawler.py -u <initial url> [-m <max pages to download>]')
-        sys.exit()
+def main(args):
+    initial_url = args.url
+    max_pages = args.max_pages
 
-    sieve = sieve.Sieve()
+    sieve = s.Sieve()
     cache = lru_cache.LRUCache()
     logfile = open("./log.txt", 'w')
     sieve.add_url(initial_url)
@@ -56,3 +39,12 @@ if __name__ == "__main__":
                 print("[VALID] {0}".format(link))
                 sieve.add_url(link)
     logfile.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='A simple web crawler')
+    parser.add_argument("url", help="Initial url")
+    parser.add_argument("-m", metavar="MAX_PAGES", dest="max_pages",
+                        help="Max number of pages to download", type=int, default=500)
+    args = parser.parse_args()
+    main(args)
