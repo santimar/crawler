@@ -1,6 +1,11 @@
 import hashlib
+import os
 
 from delay_queue import DelayQueue
+
+
+def clean_str(string: str) -> str:
+    return string.replace("\n", "")
 
 
 class Sieve:
@@ -9,8 +14,8 @@ class Sieve:
 
     def __init__(self):
         self.V = []
-        self.Z = []
-        self.A = []
+        self.Z = open(self._get_file_path("Z"), "w+")
+        self.A = open(self._get_file_path("A"), "w+")
         self.queue = DelayQueue()
 
     def get_url(self):
@@ -25,7 +30,7 @@ class Sieve:
             self._merge_v_and_z()
         _hash = self._calculate_hash(url)
         self.V.append(_hash)
-        self.A.append(url)
+        self.A.write(url + "\n")
 
     def _merge_v_and_z(self):
         # We need to make an indirect sorting to preserve original V order
@@ -41,55 +46,76 @@ class Sieve:
                 self.V[i] = self.DUPLICATED_VALUE
         # print(_first_indexes)
         url_to_recover = []
-        self.Z = self._merge_vectors(K, url_to_recover)
+        self._merge_vectors(K, url_to_recover)
         # Retrieving urls from A
-        for index in url_to_recover:
-            self._add_url(self.A[index])
-        # Last operation is to empty the vectors
+        i = 0
+        self.A.seek(0)
+        for el in self.A:
+            if i in url_to_recover:
+                self._add_url(clean_str(el))
+            i += 1
+        # Last operation is to empty V and A
         self.V = []
-        self.A = []
+        self.A.truncate(0)
 
     def _merge_vectors(self, K, url_recover):
-        x = []
+        new_Z = open(self._get_file_path("new_Z"), "w")
         V = self.V
-        Z = self.Z
-        i = j = 0
-        while i < len(V) and j < len(Z):
+        i = 0
+        j = clean_str(self.Z.readline())
+
+        while i < len(V) and j != "":
             if V[K[i]] == self.DUPLICATED_VALUE:
-                i = i + 1
+                i += 1
                 continue
-            if V[K[i]] < Z[j]:
+            if V[K[i]] < j:
                 # Only in V
                 el = V[K[i]]
                 # Keeping this index since it's only in V and I will need to retrieve the original url
                 url_recover.append(K[i])
-                i = i + 1
-            elif V[K[i]] > Z[j]:
+                i += 1
+            elif V[K[i]] > j:
                 # Only in Z
-                el = Z[j]
-                j = j + 1
+                el = j
+                j = clean_str(self.Z.readline())
             else:
                 # In both V and Z
                 el = V[K[i]]
-                i = i + 1
-                j = j + 1
-            x.append(el)
-        # I finished one array, so i need to merge the remaining part of the other
-        if i == len(V):
-            for n in range(j, len(Z)):
-                x.append(Z[n])
-        if j == len(Z):
+                i += 1
+                j = clean_str(self.Z.readline())
+            new_Z.write(el + "\n")
+        # V array finished first
+        if i == len(V) and j != "":
+            # copy the remaining part of Z
+            while j != "":
+                new_Z.write(j + "\n")
+                j = clean_str(self.Z.readline())
+        # Z file finished first
+        if j == "" and i != len(V):
+            # copy the remaining part of V
             for n in range(i, len(V)):
                 if V[K[n]] != self.DUPLICATED_VALUE:
-                    x.append(V[K[n]])
+                    new_Z.write(V[K[n]] + "\n")
                     url_recover.append(K[n])
-        return x
+
+        new_Z.close()
+        self.Z.close()
+        old_z_path = self._get_file_path("Z")
+        new_z_path = self._get_file_path("new_Z")
+        os.remove(old_z_path)
+        os.rename(new_z_path, old_z_path)
+        self.Z = open(old_z_path, "r+")
 
     def _add_url(self, url):
         pos = url.replace("/", "", 2).find("/") + 2 if url.count("/") > 2 else len(url)
         host = url[:pos]
         path = url[pos:] if pos < len(url) else "/"
         self.queue.add_url(host, path)
+
+    @staticmethod
+    def _get_file_path(filename):
+        os.makedirs(os.path.realpath("sieve/"), exist_ok=True)
+        return os.path.realpath("sieve/" + filename + ".txt")
 
     @staticmethod
     def _calculate_hash(s):
